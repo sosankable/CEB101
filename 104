@@ -1,0 +1,38 @@
+import requests
+import json
+from bs4 import BeautifulSoup
+
+useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
+headers = {'User-Agent':useragent}
+
+url='https://www.104.com.tw/jobs/search/?ro=0&keyword=big%20data&expansionType=area%2Cspec%2Ccom%2Cjob%2Cwf%2Cwktm'
+content = requests.get(url, headers=headers)
+soup = BeautifulSoup(content.text, 'html.parser')
+# print(soup)
+
+joblist = soup.select('h2.b-tit a')
+for i in joblist:
+    job = i.text
+    joburl = 'https:'+i['href']
+    joburl2 = 'https://www.104.com.tw/job/ajax/content/'+joburl.split('/')[-1]
+    referer = joburl.split('?')[0]
+
+    headers2 = {'User-Agent':useragent,'Referer':referer}
+    jobcontent = requests.get(joburl2, headers=headers2)
+
+    content = json.loads(jobcontent.text)
+    print('職稱:',content['data']['header']['jobName'])
+    print('公司:',content['data']['header']['custName'])
+    print('地點:',content['data']['jobDetail']['addressRegion'])
+    print('薪資:',content['data']['jobDetail']['salary'])
+    print('工作經歷:',content['data']['condition']['workExp'][0:2])
+    print('學歷要求:',content['data']['condition']['edu'][0:2])
+    skill=[]
+    for i in content['data']['condition']['specialty']:
+        skill.append(i['description'])
+    print('擅長工具:',skill)
+    print('='*30)
+
+
+
+
