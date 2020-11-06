@@ -34,6 +34,7 @@ for i in range (1,31):
         exp = jobcontent['data']['condition']['workExp'][0:2]
         edu = jobcontent['data']['condition']['edu'][0:2]
         skill = []
+        skill.append(jobcontent['data']['jobDetail']['jobDescription'])
         for k in jobcontent['data']['condition']['specialty']:
             skill.append(k['description'])
         content = '職稱:%s,\n' %job
