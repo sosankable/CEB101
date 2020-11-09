@@ -1,4 +1,5 @@
 import requests
+import jieba
 import json
 from bs4 import BeautifulSoup
 import os
@@ -8,8 +9,8 @@ if not os.path.exists('./104hw'):
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
 
-skill_list = ['python','java','javascript','r','mysql','mongodb','nosql','sql','aws','gcp',
-              'azure','data mining','ai','deep learning','cloud service','spark','hadoop']
+skill_list = ['python','r','java','javascript','mysql','mongodb','nosql','sql','aws','gcp',
+              'azure','data mining','linux','docker','deep learning','cloud service','spark','hadoop','ai','iot']
 
 for i in range (1,31):
     page = str(i)
@@ -21,7 +22,6 @@ for i in range (1,31):
 
     joblist = soup.select('h2.b-tit a')
     for j in joblist:
-        job = j.text
         joburl = 'https:'+j['href']
         joburl2 = 'https://www.104.com.tw/job/ajax/content/'+joburl.split('/')[-1]
         referer = joburl.split('?')[0]
@@ -38,8 +38,11 @@ for i in range (1,31):
         edu = jobcontent['data']['condition']['edu'][0:2]
         skill = []
         skill.append(jobcontent['data']['jobDetail']['jobDescription'])
+        skill.append(jobcontent['data']['condition']['other'])
         for k in jobcontent['data']['condition']['specialty']:
             skill.append(k['description'])
+        skill_str = str(skill).replace('\\r', '')
+
         content = '職稱:%s\n' %job
         content += '公司:%s\n' %company
         content += '網址:%s\n' %joburl
@@ -47,12 +50,17 @@ for i in range (1,31):
         content += '薪資:%s\n' %salary
         content += '工作經歷:%s\n' %exp
         content += '學歷要求:%s\n' %edu
-        for l in skill_list:
-            if l in skill[0].lower():
-                content += l + ':1\n'
+        wordlist = jieba.cut(str(skill_str).lower())
+        cutlist = [l for l in wordlist]
+        print(skill_str)
+        print(cutlist)
+        for m in skill_list:
+            if m in cutlist:
+                content += m + ':1\n'
             else:
-                content += l + ':0\n'
+                content += m + ':0\n'
         name = job + company
+
         print(i,content)
 
         try:
