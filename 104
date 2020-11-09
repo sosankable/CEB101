@@ -8,7 +8,10 @@ if not os.path.exists('./104hw'):
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
 
-for i in range (1,31):
+skill_list = ['python','java','javascript','r','mysql','mongodb','nosql','sql','aws','gcp',
+              'azure','data mining','ai','deep learning','cloud service','spark','hadoop']
+
+for i in range (1,2):
     page = str(i)
     url = 'https://www.104.com.tw/jobs/search/?ro=0&kwop=7&keyword=big%20data&expansionType=area%2Cspec%2Ccom%2Cjob%2Cwf%2Cwktm&order=12&asc=0&page='+page+'&mode=s'
     print(url)
@@ -37,15 +40,20 @@ for i in range (1,31):
         skill.append(jobcontent['data']['jobDetail']['jobDescription'])
         for k in jobcontent['data']['condition']['specialty']:
             skill.append(k['description'])
-        content = '職稱:%s,\n' %job
-        content += '公司:%s,\n' %company
-        content += '地點:%s,\n' %location
-        content += '薪資:%s,\n' %salary
-        content += '工作經歷:%s,\n' %exp
-        content += '學歷要求:%s,\n' %edu
-        content += '擅長工具:%s,\n' %skill
+        content = '職稱:%s\n' %job
+        content += '公司:%s\n' %company
+        content += '網址:%s\n' %joburl
+        content += '地點:%s\n' %location
+        content += '薪資:%s\n' %salary
+        content += '工作經歷:%s\n' %exp
+        content += '學歷要求:%s\n' %edu
+        for l in skill_list:
+            if l in skill[0].lower():
+                content += l + ':1\n'
+            else:
+                content += l + ':0\n'
         name = job + company
-        print(i,j)
+        print(i,content)
 
         try:
             with open('./104hw/%s.txt'%(name),'w',encoding='utf-8') as f:
