@@ -10,11 +10,11 @@ useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML
 headers = {'User-Agent':useragent}
 
 skill_list = ['python','r','java','javascript','mysql','mongodb','nosql','sql','aws','gcp',
-              'azure','data mining','linux','docker','deep learning','cloud service','spark','hadoop','ai','iot']
-
-for i in range (1,31):
+              'azure','linux','docker','spark','hadoop','ai','iot']
+skill_list2 = ['datamining','deeplearning','machinelearning','cloudservice']
+for i in range (1,3):
     page = str(i)
-    url = 'https://www.104.com.tw/jobs/search/?ro=0&kwop=7&keyword=big%20data&expansionType=area%2Cspec%2Ccom%2Cjob%2Cwf%2Cwktm&order=12&asc=0&page='+page+'&mode=s'
+    url = 'https://www.104.com.tw/jobs/search/?ro=0&keyword=%E5%A4%A7%E6%95%B8%E6%93%9A&order=1&asc=0&page='+page+'&mode=s&jobsource=2018indexpoc'
     print(url)
     content = requests.get(url, headers=headers)
     soup = BeautifulSoup(content.text, 'html.parser')
@@ -34,13 +34,15 @@ for i in range (1,31):
         company = jobcontent['data']['header']['custName']
         location = jobcontent['data']['jobDetail']['addressRegion']
         salary = jobcontent['data']['jobDetail']['salary']
-        exp = jobcontent['data']['condition']['workExp'][0:2]
+        exp = jobcontent['data']['condition']['workExp']
         edu = jobcontent['data']['condition']['edu'][0:2]
         skill = []
         skill.append(jobcontent['data']['jobDetail']['jobDescription'])
         skill.append(jobcontent['data']['condition']['other'])
         for k in jobcontent['data']['condition']['specialty']:
             skill.append(k['description'])
+        skill_str = str(skill).replace('\\r', '')
+        skill_str = str(skill_str).replace('\\n', '').lower()
 
         content = '職稱:%s\n' %job
         content += '公司:%s\n' %company
@@ -49,13 +51,19 @@ for i in range (1,31):
         content += '薪資:%s\n' %salary
         content += '工作經歷:%s\n' %exp
         content += '學歷要求:%s\n' %edu
-        wordlist = jieba.cut(str(skill_str).lower())
+        wordlist = jieba.cut(skill_str)
         cutlist = [l for l in wordlist]
+        skill_str = str(skill_str).replace(' ','')
         for m in skill_list:
             if m in cutlist:
                 content += m + ':1\n'
             else:
                 content += m + ':0\n'
+        for n in skill_list2:
+            if n in skill_str:
+                content += n + ':1\n'
+            else:
+                content += n + ':0\n'
         name = job + company
 
         print(i,content)
