@@ -27,7 +27,6 @@ for i in list['receiveData']['resultArr']:
     # print('='*30)
     data2 = {'state': 'getContentByFileName',
             'filename': file}
-    url = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp'
     res2 = requests.post(url, headers=headers, data=data2)
     raw_content = json.loads(res2.text)
     content = raw_content['content']['content']
