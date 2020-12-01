@@ -1,0 +1,44 @@
+import requests
+import json
+import os
+if not os.path.exists('./trademark'):
+    os.mkdir('./trademark')
+
+useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
+headers = {'User-Agent':useragent}
+cookies = {'cookiesession1':'678B2877TUV0124567898901234A93A0',
+          'JSESSIONID':'7_T4yvQdQG4f4IRRRPqJ3fN1I2rU7FTs20cilSoV.un081idz'}
+url = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp?tid=5f1da434-ad44-4955-97d3-1ac4433603f1(203.204.81.115)'
+url3 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp'
+data = {'state': 'queryResultJSONObject',
+'searchConditions': '{"datePubStart":"109/01/01","datePubEnd":"109/04/01","dptKind":"OPP","userType":"=====請選擇=====","boolean1":"=====請選擇=====","boolean2":"=====請選擇====="}'}
+
+res = requests.post(url, headers=headers, data=data)
+
+list = json.loads(res.text)
+for i in list['receiveData']['resultArr']:
+    no = i['PUB_NO']
+    # date = i['DATE_PUB']
+    # name = i['MARK_NAME']
+    file = i['FILENAME']
+    url2 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_SCN3.jsp?issueNo='+file+'&l6=zh_TW&isReadBulletinen_US=&isReadBulletinzh_TW=true'
+    # print(no)
+    # print(date)
+    # print(name)
+    # print(url2)
+    # print('='*30)
+    data2 = {'state': 'getContentByFileName',
+            'filename': file}
+    url = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp'
+    res2 = requests.post(url, headers=headers, data=data2)
+    raw_content = json.loads(res2.text)
+    content = raw_content['content']['content']
+    try:
+        with open('./trademark/%s.txt' % (no), 'w', encoding='utf-8') as f:
+            f.write(content)
+    except FileNotFoundError as e:
+        no = no.replace('/', '-')
+        with open('./trademark/%s.txt' % (no), 'w', encoding='utf-8') as f:
+            f.write(content)
+    except OSError:
+        pass
