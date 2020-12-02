@@ -19,7 +19,7 @@ for i in list['receiveData']['resultArr']:
     # date = i['DATE_PUB']
     # name = i['MARK_NAME']
     file = i['FILENAME']
-    url2 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_SCN3.jsp?issueNo='+file+'&l6=zh_TW&isReadBulletinen_US=&isReadBulletinzh_TW=true'
+    # url2 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_SCN3.jsp?issueNo='+file+'&l6=zh_TW&isReadBulletinen_US=&isReadBulletinzh_TW=true'
     # print(no)
     # print(date)
     # print(name)
@@ -27,7 +27,7 @@ for i in list['receiveData']['resultArr']:
     # print('='*30)
     data2 = {'state': 'getContentByFileName',
             'filename': file}
-    res2 = requests.post(url, headers=headers, data=data2)
+    res2 = requests.post(url3, headers=headers, data=data2)
     raw_content = json.loads(res2.text)
     content = raw_content['content']['content']
     try:
