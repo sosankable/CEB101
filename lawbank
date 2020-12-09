@@ -49,7 +49,7 @@ for j in courtlist:
                     count = subject + 1
                 else:
                     count = subject
-            # 若只有五位項的裁判書會出現error
+            # 若只有五項的裁判書會出現error
             except IndexError:
                 count = subject
             print(count)
