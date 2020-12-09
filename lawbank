@@ -11,7 +11,7 @@ url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKl0
 courtres = requests.get(url, headers=headers)
 courtsoup = BeautifulSoup(courtres.text, 'html.parser')
 courtlist = courtsoup.select('div.tab-content a')
-for j in courtlist[9:10]:
+for j in courtlist:
     court = j.text
     # 印出目前在爬哪個法院
     print(court)
