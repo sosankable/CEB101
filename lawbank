@@ -1,6 +1,4 @@
 import requests
-import json
-from urllib import request
 from bs4 import BeautifulSoup
 import os
 if not os.path.exists('./lawbank'):
