@@ -1,0 +1,76 @@
+import requests
+import json
+from urllib import request
+from bs4 import BeautifulSoup
+import os
+if not os.path.exists('./lawbank'):
+    os.mkdir('./lawbank')
+
+useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
+headers = {'User-Agent':useragent}
+# 給定已設好關鍵字為商標且日期為十年內的各法院裁判書網頁(民事+刑事+行政+其他合在一起)
+url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKl0O45kJ0LvbO8nIJaY9mhS%2b%2bzDHlgMWSoLdBXqunY8JZ%2fv8vMyKm1uZAQGWB75c5Q%3d%3d'
+courtres = requests.get(url, headers=headers)
+courtsoup = BeautifulSoup(courtres.text, 'html.parser')
+courtlist = courtsoup.select('div.tab-content a')
+for j in courtlist[9:10]:
+    court = j.text
+    # 印出目前在爬哪個法院
+    print(court)
+    # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個"主旨"(不需要的項目)，所以給個變數紀錄
+    if j == '具參考價值裁判' or j == '精選裁判':
+        subject = 1
+    else:
+        subject = 0
+    courturl = 'https://fyjud.lawbank.com.tw/' + j['href']
+    while True:
+        exampleres = requests.get(courturl, headers=headers)
+        examplesoup = BeautifulSoup(exampleres.text, 'html.parser')
+        examplelist = examplesoup.select('td a')
+        # 若已爬完該法院所有案例，會出現執行階段錯誤，則停止
+        if '執行階段錯誤' in examplesoup.select('title')[0]:
+            break
+        # 若未爬完，就準備下一頁的網址
+        else:
+            newcourturl = 'https://fyjud.lawbank.com.tw/' + examplelist[2]['href']
+        # 各頁各裁判書的連結需去除前後四項
+        for k in examplelist[4:-4]:
+            example = k.text
+            exampleurl = 'https://fyjud.lawbank.com.tw/' + k['href']
+            exampleres = requests.get(exampleurl, headers=headers)
+            examplesoup = BeautifulSoup(exampleres.text, 'html.parser')
+            # 印出目前爬到該法院第幾個裁判書
+            schedule = str(examplesoup.select('div.fint-pager span')[0].text)
+            print(schedule)
+            no = schedule.split('/')[1][4:-1]
+            name = examplesoup.select('th')
+            content = examplesoup.select('td')
+            # 有些裁判書會有"被引用數"(不需要的項目)，出現在第五或第六項，給個變數紀錄
+            try:
+                if '被引用數' in name[5].text or '被引用數' in name[6].text:
+                    count = subject + 1
+                else:
+                    count = subject
+            # 若只有五位項的裁判書會出現error
+            except IndexError:
+                count = subject
+            print(count)
+            a = ''
+            for i in range(5):
+                a += name[i].text
+                a += content[i].text + '\n'
+            # 跳過主旨或被引用數到主文
+            a += content[5+count].text
+            filename = no + example
+            # 寫入檔案
+            try:
+                with open('./lawbank/%s.txt' % (filename), 'w', encoding='utf-8') as f:
+                    f.write(a)
+            except FileNotFoundError as e:
+                filename = filename.replace('/', '-')
+                with open('./lawbank/%s.txt' % (filename), 'w', encoding='utf-8') as f:
+                    f.write(a)
+            except OSError:
+                pass
+        # 換下一頁的網址繼續爬
+        courturl = newcourturl
