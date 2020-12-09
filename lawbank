@@ -52,8 +52,8 @@ for j in courtlist:
             # 若只有五項的裁判書會出現error
             except IndexError:
                 count = subject
-            print(count)
             a = ''
+            # 字號,案由,日期,相關資料,查閱
             for i in range(5):
                 a += name[i].text
                 a += content[i].text + '\n'
