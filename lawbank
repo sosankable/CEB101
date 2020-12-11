@@ -3,6 +3,9 @@ from bs4 import BeautifulSoup
 import os
 if not os.path.exists('./lawbank'):
     os.mkdir('./lawbank')
+from time import sleep
+from random import randint
+import json
 
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
@@ -11,10 +14,8 @@ url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKl0
 courtres = requests.get(url, headers=headers)
 courtsoup = BeautifulSoup(courtres.text, 'html.parser')
 courtlist = courtsoup.select('div.tab-content a')
-for j in courtlist:
+for j in courtlist[1:14]:
     court = j.text
-    # 印出目前在爬哪個法院
-    print(court)
     # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個"主旨"(不需要的項目)，所以給個變數紀錄
     if j == '具參考價值裁判' or j == '精選裁判':
         subject = 1
@@ -25,18 +26,20 @@ for j in courtlist:
         pageres = requests.get(courturl, headers=headers)
         pagesoup = BeautifulSoup(pageres.text, 'html.parser')
         pagelist = pagesoup.select('td a')
-        # 若已爬完該法院所有裁判書，則會出現執行階段錯誤，停止
-        if '執行階段錯誤' in pagesoup.select('title')[0]:
-            break
         # 若未爬完，就準備下一頁的網址
-        else:
+        try:
             newcourturl = 'https://fyjud.lawbank.com.tw/' + pagelist[2]['href']
+        # 若已爬完該法院所有裁判書，則會出現IndexError，停止
+        except IndexError:
+            break
         # 各頁各裁判書的連結需去除前後四項
         for k in pagelist[4:-4]:
             judgment = k.text
             judgmenturl = 'https://fyjud.lawbank.com.tw/' + k['href']
             judgmentres = requests.get(judgmenturl, headers=headers)
             judgmentsoup = BeautifulSoup(judgmentres.text, 'html.parser')
+            # 印出目前在爬哪個法院
+            print(court)
             # 印出目前爬到該法院第幾個裁判書
             schedule = str(judgmentsoup.select('div.fint-pager span')[0].text)
             print(schedule)
@@ -52,23 +55,23 @@ for j in courtlist:
             # 若只有五項的裁判書會出現error
             except IndexError:
                 count = subject
+            # print(count)
             a = ''
-            # 字號,案由,日期,相關資料,查閱
-            for i in range(5):
-                a += name[i].text
-                a += content[i].text + '\n'
-            # 跳過主旨或被引用數到主文
-            a += content[5+count].text
-            filename = no + judgment
-            # 寫入檔案
             try:
-                with open('./lawbank/%s.txt' % (filename), 'w', encoding='utf-8') as f:
-                    f.write(a)
-            except FileNotFoundError as e:
-                filename = filename.replace('/', '-')
-                with open('./lawbank/%s.txt' % (filename), 'w', encoding='utf-8') as f:
-                    f.write(a)
-            except OSError:
+                # 字號,案由,日期,相關資料,查閱
+                for i in range(5):
+                    a += name[i].text
+                    a += content[i].text + '\n'
+                # 跳過主旨或被引用數到主文
+                a += content[5+count].text
+            # 有些須付費才能查閱，會出現IndexError，跳過
+            except IndexError:
                 pass
+            filename = no + judgment
+            dict = {filename:a}
+            # 寫入檔案
+            with open("./lawbank/judgment.json", "a", encoding="UTF-8") as f:
+                json.dump(dict, f, ensure_ascii=False)
         # 換下一頁的網址繼續爬
         courturl = newcourturl
+        sleep(randint(1, 7))
