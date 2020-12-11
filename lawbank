@@ -14,7 +14,7 @@ url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKl0
 courtres = requests.get(url, headers=headers)
 courtsoup = BeautifulSoup(courtres.text, 'html.parser')
 courtlist = courtsoup.select('div.tab-content a')
-for j in courtlist[1:14]:
+for j in courtlist:
     court = j.text
     # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個"主旨"(不需要的項目)，所以給個變數紀錄
     if j == '具參考價值裁判' or j == '精選裁判':
