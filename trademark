@@ -7,8 +7,6 @@ if not os.path.exists('./trademark'):
 
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
-# cookies = {'cookiesession1':'678B2877TUV0124567898901234A93A0',
-#           'JSESSIONID':'7_T4yvQdQG4f4IRRRPqJ3fN1I2rU7FTs20cilSoV.un081idz'}
 url = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp?tid=5f1da434-ad44-4955-97d3-1ac4433603f1(203.204.81.115)'
 url2 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp'
 data = {'state': 'queryResultJSONObject',
