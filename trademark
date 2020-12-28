@@ -1,77 +1,46 @@
 import requests
-from bs4 import BeautifulSoup
-import os
-if not os.path.exists('./lawbank'):
-    os.mkdir('./lawbank')
-from time import sleep
-from random import randint
 import json
+from urllib import request
+import os
+if not os.path.exists('./trademark'):
+    os.mkdir('./trademark')
 
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
-# 給定已設好關鍵字為商標且日期為十年內的各法院裁判書網頁(民事+刑事+行政+其他合在一起)
-url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKmp5LWd3DXHnOdMAl3zo7dWNp6YcXtlA8ExAc1eIsK2Daf2IxyqUp61OlgMdHnX%2fhw%3d%3d'
-courtres = requests.get(url, headers=headers)
-courtsoup = BeautifulSoup(courtres.text, 'html.parser')
-courtlist = courtsoup.select('div.tab-content a')
-for j in courtlist:
-    court = j.text
-    # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個不需要的項目，所以給個變數紀錄
-    if court == '具參考價值裁判' or court == '精選裁判':
-        subject = 1
-    else:
-        subject = 0
-    courturl = 'https://fyjud.lawbank.com.tw/' + j['href']
-    while True:
-        pageres = requests.get(courturl, headers=headers)
-        pagesoup = BeautifulSoup(pageres.text, 'html.parser')
-        pagelist = pagesoup.select('td a')
-        # 若未爬完，就準備下一頁的網址
-        try:
-            newcourturl = 'https://fyjud.lawbank.com.tw/' + pagelist[2]['href']
-        # 若已爬完該法院所有裁判書，則會出現IndexError，停止
-        except IndexError:
-            break
-        # 各頁各裁判書的連結需去除前後四項
-        for k in pagelist[4:-4]:
-            judgment = k.text
-            judgmenturl = 'https://fyjud.lawbank.com.tw/' + k['href']
-            judgmentres = requests.get(judgmenturl, headers=headers)
-            judgmentsoup = BeautifulSoup(judgmentres.text, 'html.parser')
-            # 印出目前在爬哪個法院
-            print(court)
-            # 印出目前爬到該法院第幾個裁判書
-            schedule = str(judgmentsoup.select('div.fint-pager span')[0].text)
-            print(schedule)
-            no = schedule.split('/')[1][4:-1]
-            name = judgmentsoup.select('th')
-            content = judgmentsoup.select('td')
-            # 有些裁判書會有"被引用數"(不需要的項目)，出現在第五或第六項，給個變數紀錄
-            try:
-                if '被引用數' in name[5].text or '被引用數' in name[6].text:
-                    count = subject + 1
-                else:
-                    count = subject
-            # 若只有五項的裁判書會出現error
-            except IndexError:
-                count = subject
-            # print(count)
-            a = ''
-            try:
-                # 字號,案由,日期,相關資料,查閱
-                for i in range(5):
-                    a += name[i].text
-                    a += content[i].text + '\n'
-                # 跳到主文
-                a += content[5+count].text
-            # 有些須付費才能查閱，會出現IndexError，跳過
-            except IndexError:
-                pass
-            filename = no + judgment
-            dict = {filename:a}
-            # 寫入檔案
-            with open("./lawbank/judgment.json", "a", encoding="UTF-8") as f:
-                json.dump(dict, f, ensure_ascii=False)
-        # 換下一頁的網址繼續爬
-        courturl = newcourturl
-        sleep(randint(1, 7))
+url = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp?tid=5f1da434-ad44-4955-97d3-1ac4433603f1(203.204.81.115)'
+url2 = 'https://twtmsearch.tipo.gov.tw/OS0/OS0401_q.jsp'
+data = {'state': 'queryResultJSONObject',
+'searchConditions': '{"datePubStart":"108/07/01","datePubEnd":"108/12/31","dptKind":"REV","userType":"=====請選擇=====","boolean1":"=====請選擇=====","boolean2":"=====請選擇====="}'}
+
+res = requests.post(url, headers=headers, data=data)
+
+list = json.loads(res.text)
+for i in list['receiveData']['resultArr']:
+    date = i['DATE_PUB']
+    name = i['MARK_NAME']
+    file = str(i['FILENAME'])
+    data2 = {'state': 'getContentByFileName',
+            'filename': file}
+    # 爬處分書內容
+    res2 = requests.post(url2, headers=headers, data=data2)
+    raw_content = json.loads(res2.text)
+    content = raw_content['content']['content']
+    try:
+        with open('./trademark/%s.txt' % (file), 'w', encoding='utf-8') as f:
+            f.write(content)
+    except FileNotFoundError as e:
+        file = file.replace('/', '-')
+        with open('./trademark/%s.txt' % (file), 'w', encoding='utf-8') as f:
+            f.write(content)
+    except OSError:
+        pass
+
+    # 爬圖片
+    no = raw_content['content']['main'][77:118]
+    url3 = 'https://twtmsearch.tipo.gov.tw/SS0/SS0201_q.jsp?q=1&state=doQuery&showType=2&caseType=1&caseNo='+no+'&caseNo2=&isReadBulletinen_US=&isReadBulletinzh_TW=true&l6=zh_TW'
+    res = requests.post(url3, headers=headers)
+    raw_content = json.loads(res.text)
+    id = raw_content['datas']['SCN2']['fullFileName']
+    print(id)
+    url4 = 'https://twtmsearch.tipo.gov.tw/imageLoad.jsp?path='+id+'&formatName=jpeg&pathCodeId=282_pic'
+    request.urlretrieve(url4, './trademark/%s.jpg' % (file))
