@@ -10,14 +10,14 @@ import json
 useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'
 headers = {'User-Agent':useragent}
 # 給定已設好關鍵字為商標且日期為十年內的各法院裁判書網頁(民事+刑事+行政+其他合在一起)
-url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKl0O45kJ0LvbO8nIJaY9mhS%2b%2bzDHlgMWSoLdBXqunY8JZ%2fv8vMyKm1uZAQGWB75c5Q%3d%3d'
+url = 'https://fyjud.lawbank.com.tw/listmenu2.aspx?p=C0%2fY8zyhQTjc%2bWfjfsAMKmp5LWd3DXHnOdMAl3zo7dWNp6YcXtlA8ExAc1eIsK2Daf2IxyqUp61OlgMdHnX%2fhw%3d%3d'
 courtres = requests.get(url, headers=headers)
 courtsoup = BeautifulSoup(courtres.text, 'html.parser')
 courtlist = courtsoup.select('div.tab-content a')
 for j in courtlist:
     court = j.text
-    # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個"主旨"(不需要的項目)，所以給個變數紀錄
-    if j == '具參考價值裁判' or j == '精選裁判':
+    # 若為"具參考價值裁判"或"精選裁判"，裁判書中的主文前會多一個不需要的項目，所以給個變數紀錄
+    if court == '具參考價值裁判' or court == '精選裁判':
         subject = 1
     else:
         subject = 0
@@ -62,7 +62,7 @@ for j in courtlist:
                 for i in range(5):
                     a += name[i].text
                     a += content[i].text + '\n'
-                # 跳過主旨或被引用數到主文
+                # 跳到主文
                 a += content[5+count].text
             # 有些須付費才能查閱，會出現IndexError，跳過
             except IndexError:
