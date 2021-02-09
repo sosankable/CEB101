@@ -1,0 +1,356 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+import time
+from sklearn import decomposition
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import KMeans
+from sklearn import cluster, datasets, metrics
+import pickle
+import Levenshtein
+
+dt_model = pickle.load(open('dt_model.pkl', 'rb'))
+input_time = time.time()
+
+
+def find_same_word(input_s, g_codes_list, db_path1):
+    df1 = pd.read_csv(db_path1, sep=",", header=None)
+    g_codes_list = g_codes_list.replace("'", "").replace("\"", "").replace(" ", "").strip("[]").split(",")
+
+    df_name = df1.iloc[:, 1]
+    df_gcode = df1.iloc[:, 2]
+    # 先找出同類別的商標們
+    g_list = []
+    n = 0
+    a = len(df_gcode)
+    for x in range(len(g_codes_list)):
+        for i in range(a):
+            try:
+                if str(g_codes_list[x]) == str(df_gcode[i]):
+                    # print(str(g_codes_list[x]))
+                    if df_name[i] not in g_list:
+                        g_list.append(str(df_name[i]))
+            except:
+                pass
+    # #有一樣字的就選出來
+    # #把問題也加入 list
+    output_list = [input_s]
+
+    for j in str(input_s):
+        b = len(g_list)
+        for i in range(b):
+            c = len(str(g_list[i]))
+            for k in range(c):
+                if str(j) == str(g_list[i])[k]:
+                    if str(g_list[i]) not in output_list:
+                        output_list.append(str(g_list[i]))
+    new_df = pd.DataFrame(output_list, columns=["output"])
+    #     new_df.to_csv("./data/input_temp.csv",index=False)
+
+    # 2.one hot encoding
+    #     df_input = pd.read_csv("./data/input_temp.csv")
+    #     df = df_input['output']
+    df = new_df['output']
+    out_put_one_list = []
+    for i in range(len(df)):
+        for j in df[i]:
+            if j not in out_put_one_list:
+                out_put_one_list.append(j)
+    out_put_one_df = pd.DataFrame(out_put_one_list)
+    dummy_df = pd.get_dummies(out_put_one_df)
+    n_df = pd.DataFrame()
+    for i in range(len(df)):
+        m_df = pd.DataFrame()
+        for j in df[i]:
+            for k in dummy_df.columns:
+                if str(j) == str(k[2]):
+                    m_df = m_df.append(dummy_df[k].T)
+        n_df = n_df.append(pd.DataFrame(m_df.sum(axis=0)).T)
+    array_train_one_sk = n_df.to_numpy()
+
+    # 3.PCA降維
+    X_pca = array_train_one_sk
+    pca = decomposition.PCA(n_components=3)
+    X_pca_done = pca.fit_transform(X_pca)
+    X_pca_df = pd.DataFrame(X_pca_done)
+
+    # 4. 開始各種分群
+    model_a1 = AgglomerativeClustering(n_clusters=30, linkage='average')
+    c_a1 = model_a1.fit_predict(X_pca_done)
+    label_a1 = pd.Series(model_a1.labels_)
+
+    model_a2 = AgglomerativeClustering(n_clusters=30, linkage='complete')
+    c_a2 = model_a2.fit_predict(X_pca_done)
+    label_a2 = pd.Series(model_a2.labels_)
+
+    model_a3 = AgglomerativeClustering(n_clusters=30, linkage='ward')
+    c_a3 = model_a3.fit_predict(X_pca_done)
+    label_a3 = pd.Series(model_a3.labels_)
+
+    model_a4 = AgglomerativeClustering(n_clusters=30, linkage='single')
+    c_a4 = model_a4.fit_predict(X_pca_done)
+    label_a4 = pd.Series(model_a4.labels_)
+
+    model_k1 = KMeans(n_clusters=30, init="random")
+    c_k1 = model_k1.fit_predict(X_pca_done)
+    label_k1 = pd.Series(model_k1.labels_)
+
+    model_k2 = KMeans(n_clusters=30, init="k-means++")
+    c_k2 = model_k2.fit_predict(X_pca_done)
+    label_k2 = pd.Series(model_k2.labels_)
+
+    clus_df = pd.DataFrame()
+    clus_df["ag_average"] = label_a1
+    clus_df["ag_complete"] = label_a2
+    clus_df["ag_ward"] = label_a3
+    clus_df["ag_single"] = label_a4
+    clus_df["kmeans"] = c_k1
+    clus_df["kmeans_plus"] = c_k2
+
+    df_new = pd.concat([df, clus_df], axis=1)
+    df_new.to_csv("./trained.csv", encoding="utf-8-sig")
+
+    # 5. 和問題同群的有
+    q_a_list = []
+    for i in df_new.columns:
+        q_a_list.append(df_new[i][0])
+    all_list = []
+
+    for j in range(1, len(q_a_list)):
+        one_list = []
+        one_no_list = []
+        for k in range(1, len(df_new)):
+            if str(df_new.iloc[:, j][k]) == str(q_a_list[j]):
+                one_list.append(df_new.iloc[:, 0][k])
+                one_no_list.append(df_new.iloc[:, -1][k])
+        all_list.append(one_list)
+
+    all_df = pd.DataFrame(all_list)
+
+    # 6. 分群結果計算分數
+    silhouette_a1 = metrics.silhouette_score(X_pca_done, label_a1)
+    silhouette_a2 = metrics.silhouette_score(X_pca_done, label_a2)
+    silhouette_a3 = metrics.silhouette_score(X_pca_done, label_a3)
+    silhouette_a4 = metrics.silhouette_score(X_pca_done, label_a4)
+    silhouette_k1 = metrics.silhouette_score(X_pca_done, c_k1)
+    silhouette_k2 = metrics.silhouette_score(X_pca_done, c_k2)
+    silhouette_score_list = [silhouette_a1, silhouette_a2, silhouette_a3, silhouette_a4, silhouette_k1, silhouette_k2]
+    # print(silhouette_score_list)
+    n = len(silhouette_score_list)
+    silhouette_percentage = []
+
+    for i in silhouette_score_list:
+        silhouette_percentage.append(float("{:.2f}".format((i / n) * 100)))
+    #     print(silhouette_percentage )
+
+    q_a_list = []
+    for i in df_new.columns:
+        q_a_list.append(df_new[i][0])
+    unique_list = []
+    for j in range(1, len(q_a_list)):
+        #     one_list = []
+        for k in range(1, len(df_new)):
+            if str(df_new.iloc[:, j][k]) == str(q_a_list[j]):
+                if df_new.iloc[:, 0][k] not in unique_list:
+                    if df_new.iloc[:, 0][k] != None:
+                        unique_list.append(df_new.iloc[:, 0][k])
+
+    score_list = [0] * len(unique_list)
+    for i in range(len(unique_list)):
+        if unique_list[i] in all_list[0]:
+            score_list[i] += silhouette_percentage[0]
+        if unique_list[i] in all_list[1]:
+            score_list[i] += silhouette_percentage[1]
+        if unique_list[i] in all_list[2]:
+            score_list[i] += silhouette_percentage[2]
+        if unique_list[i] in all_list[3]:
+            score_list[i] += silhouette_percentage[3]
+        if unique_list[i] in all_list[4]:
+            score_list[i] += silhouette_percentage[4]
+        if unique_list[i] in all_list[5]:
+            score_list[i] += silhouette_percentage[5]
+
+    #     return unique_list, score_list
+
+    # 7. 建立最高分相似商標名(若小於五個，再找次高分的)
+
+    res = []
+    count = 0
+    score_list_sorted = sorted(score_list, reverse=True)
+    new_score_list = []
+    for i in score_list_sorted:
+        if i not in new_score_list:
+            new_score_list.append(i)
+    for h in new_score_list:
+        for i, j in zip(unique_list, score_list):
+            if j == h:
+                res.append([i, j])
+                count += 1
+        if count >= 5:
+            break
+    print(res)
+
+    keys = []
+    values = []
+    dict_plaintiff = {}
+    dict_defendant = {}
+
+    for i in range(len(res)):
+        keys.append(i)
+    for i in range(len(keys)):
+        values.append(res[i][0])
+        dict_plaintiff[keys[i]] = A
+        dict_defendant[keys[i]] = values[i]
+
+    data = {'plaintiff': dict_plaintiff,
+            'defendant': dict_defendant}
+    df = pd.DataFrame(data)
+
+    # 8. 建立前五相似商標之特徵
+    # 以下為舊方法(自定義特徵)
+# df.insert(2, 'len_difference0', 0)
+# df.insert(3, 'len_difference0', 0)
+# df.insert(4, 'similar_rate1', 0.0)
+# df.insert(5, 'similar_rate2', 0.0)
+# df.insert(6, 'similar_rate3', 0.0)
+# for i in range(len(df)):
+#     #         計算字元差異度
+#     df['len_difference0'][i] = abs(len(df['plaintiff'][i]) - len(df['defendant'][i]))
+# 
+#     plaintiff_voc = []
+#     defendant_voc = []
+# 
+#     #         將原告、被告的每個字元加進新的list
+#     for j in df['plaintiff'][i]:
+#         plaintiff_voc.append(j)
+#     for k in df['defendant'][i]:
+#         defendant_voc.append(k)
+# 
+#     #         計算字元相似度
+#     a = 0
+#     for l in range(len(plaintiff_voc)):
+#         if plaintiff_voc[l] in defendant_voc:
+#             a += 1
+#     similar_rate1 = (a / len(plaintiff_voc) + a / len(defendant_voc)) / 2
+#     df['similar_rate1'][i] = similar_rate1
+# 
+#     #         列出原告、被告共同的字元
+#     plaintiff_voc_kind = list(set(plaintiff_voc))
+#     defendant_voc_kind = list(set(defendant_voc))
+#     both_kind = plaintiff_voc_kind + defendant_voc_kind
+#     both_kind = list(set(both_kind))
+#     both = []
+#     for n in range(len(plaintiff_voc)):
+#         if plaintiff_voc[n] in defendant_voc:
+#             both.append(plaintiff_voc[n])
+#     both_unique = []
+#     for o in both:
+#         if o not in both_unique:
+#             both_unique.append(o)
+#     both = both_unique
+# 
+#     #         計算字頻相似度
+#     b = 0
+#     for m in range(len(plaintiff_voc_kind)):
+#         if plaintiff_voc_kind[m] in defendant_voc_kind:
+#             b += 1
+#     similar_rate2 = b / len(both_kind)
+#     df['similar_rate2'][i] = similar_rate2
+# 
+#     #     print(plaintiff_voc)
+#     #     print(defendant_voc)
+#     #     print(both)
+# 
+#     #         原告、被告裡共同字元的順序分別為何
+#     plaintiff_index = []
+#     defendant_index = []
+#     for p in range(len(plaintiff_voc)):
+#         if plaintiff_voc[p] in both:
+#             plaintiff_index.append(both.index(plaintiff_voc[p]))
+#     for r in range(len(defendant_voc)):
+#         if defendant_voc[r] in both:
+#             defendant_index.append(both.index(defendant_voc[r]))
+#     #     print(plaintiff_index)
+#     #     print(defendant_index)
+#     if len(plaintiff_index) > len(defendant_index):
+#         shorter = defendant_index
+#         longer = plaintiff_index
+#     else:
+#         shorter = plaintiff_index
+#         longer = defendant_index
+# 
+#     #         計算順序相似度
+#     similar_rate3 = []
+#     for i in range(len(shorter) - 1):
+#         for j in range(len(longer) - 1):
+#             if shorter[i:i + 2] == longer[j:j + 2]:
+#                 k = i + 2
+#                 l = j + 2
+#                 while k < len(shorter) and l < len(longer):
+#                     if shorter[k] == longer[l]:
+#                         k += 1
+#                         l += 1
+#                     else:
+#                         break
+#                 n = k - i
+#                 similar_rate3.append(n)
+#     #     print(similar_rate3)
+#     try:
+#         if len(shorter) in similar_rate3:
+#             similar_rate3 = 1
+#         elif len(shorter) == 1 or len(longer) == 1:
+#             similar_rate3 = 0
+#         else:
+#             similar_rate3 = sum(similar_rate3) / len(shorter) / len(similar_rate3)
+#     except:
+#         similar_rate3 = 0
+#     df['similar_rate3'][i] = similar_rate3
+# #     print(df1['similar_rate3'][i])
+
+#     對字元差異度進行標準化
+# len_distance = (df.len_distance0-df.len_distance0.min()) / (df.len_distance0.max() - df.len_distance0.min())
+# df['len_distance'] = len_distance
+# df = df.round(4)
+
+# 以下為新方法(編輯距離)
+    df.insert(2, 'distance', 0)
+    df.insert(3, 'ratio', 0.0)
+    df.insert(4, 'jaro', 0.0)
+    df.insert(5, 'jaro_winkler', 0.0)
+    df.insert(6, 'distance0', 0.0)
+
+    for i in range(len(df)):
+        df['distance0'][i] = Levenshtein.distance(df['plaintiff'][i], df['defendant'][i])
+        df['ratio'][i] = Levenshtein.ratio(df['plaintiff'][i], df['defendant'][i])
+        df['jaro'][i] = Levenshtein.jaro(df['plaintiff'][i], df['defendant'][i])
+        df['jaro_winkler'][i] = Levenshtein.jaro_winkler(df['plaintiff'][i], df['defendant'][i])
+
+    distance = (df.distance0-df.distance0.min()) / (df.distance0.max() - df.distance0.min())
+    df['distance'] = distance
+
+
+
+    # 9. 判斷風險
+
+    x_test = df[['distance', 'ratio', 'jaro', 'jaro_winkler']]
+    x_test = np.array(x_test, dtype=float)
+    y_pred = dt_model.predict(x_test)
+    x_test = pd.DataFrame(x_test)
+    y_pred = pd.DataFrame(y_pred)
+    result = pd.concat([df[['plaintiff', 'defendant']], x_test, y_pred], axis=1)
+    print(result)
+    y_pred = np.array(y_pred, dtype=float)
+
+    if y_pred.mean() >= 0.6:
+        return '風險:高'
+    elif y_pred.mean() >= 0.4:
+        return '風險:中'
+    else:
+        return '風險:低'
+        
+if __name__ == "__main__":
+    A = input('輸入名稱 : ' + "")
+    B = input('輸入類別 : ' + "")
+    C = "./g_code_tname_clean.csv"
+
+find_same_word(A, B, C)
